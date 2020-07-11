@@ -1,59 +1,134 @@
 const socket = io();
-var video = document.getElementById('video-chat');
-// When the client receives a voice message it will play the sound
-socket.on('voice', function (arrayBuffer) {
-    var blob = new Blob([arrayBuffer], { mimeType: 'video/mp4; codecs="opus,vp8"' });
-    video.src = window.URL.createObjectURL(blob);
-    video.play();
-});
+const currentUser = decodeURI(window.location.search).split("&")[0].split("=")[1].toLocaleLowerCase();
 
-socket.on("giveMessage", data => {
-    console.log(data);
-    let $chatContainer = document.getElementById("chat-container");
+// Elements
+const $messageForm = document.querySelector('#message-form')
+const $messageFormInput = $messageForm.querySelector('input')
+const $messageFormButton = $messageForm.querySelector('button')
+const $clearChat = document.querySelector('#clear-chat')
+const $messages = document.querySelector('#messages')
 
-    let p = document.createElement("p");
-    p.innerText = data;
-    $chatContainer.prepend(p);
+// Templates
+const messageTemplate = document.querySelector('#message-template').innerHTML
+const locationMessageTemplate = document.querySelector('#location-message-template').innerHTML
+const sidebarTemplate = document.querySelector('#sidebar-template').innerHTML
 
-});
+// Options
+const { username, room } = Qs.parse(location.search, { ignoreQueryPrefix: true })
 
-const send = () => {
-    let $msg = document.getElementById("chat-input");
-    if (msg.value) {
-        socket.emit("getMessage", msg);
-        $msg.value = "";
+const autoscroll = () => {
+    // New message element
+    const $newMessage = $messages.lastElementChild
+
+    // Height of the new message
+    const newMessageStyles = getComputedStyle($newMessage)
+    const newMessageMargin = parseInt(newMessageStyles.marginBottom)
+    const newMessageHeight = $newMessage.offsetHeight + newMessageMargin
+
+    // Visible height
+    const visibleHeight = $messages.offsetHeight
+
+    // Height of messages container
+    const containerHeight = $messages.scrollHeight
+
+    // How far have I scrolled?
+    const scrollOffset = $messages.scrollTop + visibleHeight
+
+    if (containerHeight - newMessageHeight <= scrollOffset) {
+        $messages.scrollTop = $messages.scrollHeight
     }
 }
 
-const f2f = () => {
-    let chunks = [];
-    navigator.mediaDevices.getUserMedia({ video:true, audio: true }).then(mediaStream => {
+socket.on('message', (message) => {
+    console.log(message)
+    if (message.username === "Admin") {
+        return;
+    }
+    let html;
 
-        var mediaRecorder = new MediaRecorder(mediaStream);
-        mediaRecorder.onstart = function (e) {
-            this.chunks = [];
-        };
-        mediaRecorder.ondataavailable = function (e) {
-            this.chunks.push(e.data);
-            sendVoice(this.chunks)
-        };
-        mediaRecorder.onstop = function (e) {
-            //setTimeout(()=>{sendVoice(this.chunks)}, 1000);
-        };
+    if (currentUser === message.username) {
+        html = Mustache.render(messageTemplate, {
+            username: "you",
+            message: message.text,
+            createdAt: moment(message.createdAt).format('h:mm a'),
+            right:" align-right"
+        });
+    }
+    else {
+        html = Mustache.render(messageTemplate, {
+            username: message.username,
+            message: message.text,
+            createdAt: moment(message.createdAt).format('h:mm a'),
+            right:""
+        });
+    }
+    $messages.insertAdjacentHTML('beforeend', html)
+    autoscroll();
+})
 
-        // Start recording
-        mediaRecorder.start();
-        // Stop recording after 5 seconds and broadcast it to server
-        setInterval(function () {
-            mediaRecorder.stop()
-            mediaRecorder.start()
-        }, 1500);
-    });
+// socket.on('locationMessage', (message) => {
+//     console.log(message)
+//     const html = Mustache.render(locationMessageTemplate, {
+//         username: message.username,
+//         url: message.url,
+//         createdAt: moment(message.createdAt).format('h:mm a')
+//     })
+//     $messages.insertAdjacentHTML('beforeend', html)
+//     autoscroll()
+// })
 
-};
-f2f();
+socket.on('roomData', ({ room, users }) => {
+    users.reverse();
+    const html = Mustache.render(sidebarTemplate, {
+        room,
+        users
+    })
+    document.querySelector('#sidebar').innerHTML = html
+})
 
-const sendVoice = (chunks) => {
-    var blob = new Blob(chunks, { mimeType: 'video/mp4; codecs="opus,vp8"' });
-    socket.emit('radio', blob);
-};
+$messageForm.addEventListener('submit', (e) => {
+    e.preventDefault()
+
+    $messageFormButton.setAttribute('disabled', 'disabled')
+
+    const message = e.target.elements.message.value
+
+    socket.emit('sendMessage', message, (error) => {
+        $messageFormButton.removeAttribute('disabled')
+        $messageFormInput.value = ''
+        $messageFormInput.focus()
+
+        if (error) {
+            return console.log(error)
+        }
+
+        console.log('Message delivered!')
+    })
+})
+
+$clearChat.addEventListener('click', () => {
+
+    let message = document.querySelector("#messages");
+    message.innerHTML = "";
+    // if (!navigator.geolocation) {
+    //     return alert('Geolocation is not supported by your browser.')
+    // }
+
+    //$sendLocationButton.setAttribute('disabled', 'disabled')
+    // navigator.geolocation.getCurrentPosition((position) => {
+    //     socket.emit('sendLocation', {
+    //         latitude: position.coords.latitude,
+    //         longitude: position.coords.longitude
+    //     }, () => {
+    //         $sendLocationButton.removeAttribute('disabled')
+    //         console.log('Location shared!')  
+    //     })
+    // })
+})
+
+socket.emit('join', { username, room }, (error) => {
+    if (error) {
+        alert(error)
+        location.href = '/'
+    }
+})

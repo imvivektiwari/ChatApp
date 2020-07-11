@@ -1,22 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
-
-<body>
-    <video  preload="metadata" id="video-chat" style="min-width:200px; width: 200px;"></video>
-    <input id="chat-input" /> <button onclick="send()">Send</button>
-    <div id="chat-container">
-
-    </div>
-    
-
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
-    <script defer src="./js/chat.js"></script>
-</body>
-
+<html>
+    <head>
+        <title>Chat App</title>
+        <link rel="stylesheet" href="/css/styles.css">
+    </head>
+    <body>
+        <div class="centered-form">
+            <div class="centered-form__box">
+                <h1>Join</h1>
+                <form action="/chat.html">
+                    <label>Username</label>
+                    <input type="text" name="username" placeholder="Provide a name" required>
+                    <label>Chat Room</label>
+                    <select name="room" required>
+                        <option value="HYD - N2">HYD - N2</option>
+                        <option value="HYD - N1">HYD - N1</option>
+                        <option value="MUM - S1">MUM - S1</option>
+                    </select>
+                    <!-- <input type="text" name="room" placeholder="Room" required> -->
+                    <button>Join</button>
+                </form>
+            </div>
+        </div>
+    </body>
 </html>
