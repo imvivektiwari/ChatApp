@@ -10,6 +10,7 @@ const $messages = document.querySelector('#messages')
 
 // Templates
 const messageTemplate = document.querySelector('#message-template').innerHTML
+const fileMessageTemplate = document.querySelector('#file-message-template').innerHTML
 const locationMessageTemplate = document.querySelector('#location-message-template').innerHTML
 const sidebarTemplate = document.querySelector('#sidebar-template').innerHTML
 
@@ -40,18 +41,16 @@ const autoscroll = () => {
 }
 
 socket.on('message', (message) => {
-    console.log(message)
     if (message.username === "Admin") {
         return;
     }
     let html;
-
     if (currentUser === message.username) {
         html = Mustache.render(messageTemplate, {
             username: "you",
             message: message.text,
             createdAt: moment(message.createdAt).format('h:mm a'),
-            right:" align-right"
+            right: " align-right"
         });
     }
     else {
@@ -59,23 +58,12 @@ socket.on('message', (message) => {
             username: message.username,
             message: message.text,
             createdAt: moment(message.createdAt).format('h:mm a'),
-            right:""
+            right: ""
         });
     }
     $messages.insertAdjacentHTML('beforeend', html)
     autoscroll();
-})
-
-// socket.on('locationMessage', (message) => {
-//     console.log(message)
-//     const html = Mustache.render(locationMessageTemplate, {
-//         username: message.username,
-//         url: message.url,
-//         createdAt: moment(message.createdAt).format('h:mm a')
-//     })
-//     $messages.insertAdjacentHTML('beforeend', html)
-//     autoscroll()
-// })
+});
 
 socket.on('roomData', ({ room, users }) => {
     users.reverse();
@@ -83,15 +71,38 @@ socket.on('roomData', ({ room, users }) => {
         room,
         users
     })
-    document.querySelector('#sidebar').innerHTML = html
-})
+    document.querySelector('#sidebar').innerHTML = html;
+});
+
+socket.on('file', (message) => {
+    if (currentUser === message.username) {
+        html = Mustache.render(fileMessageTemplate, {
+            username: "you",
+            url: `./download/?id=${message.url}`,
+            name: message.url.substring(message.url.lastIndexOf('\\') + 1),
+            createdAt: moment(message.createdAt).format('h:mm a'),
+            right: " align-right"
+        });
+    }
+    else {
+        html = Mustache.render(fileMessageTemplate, {
+            username: message.username,
+            url: `./download/?id=${message.url}`,
+            name: message.url.substring(message.url.lastIndexOf('\\') + 1),
+            createdAt: moment(message.createdAt).format('h:mm a'),
+            right: ""
+        });
+    }
+    $messages.insertAdjacentHTML('beforeend', html);
+    autoscroll();
+});
 
 $messageForm.addEventListener('submit', (e) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    $messageFormButton.setAttribute('disabled', 'disabled')
+    $messageFormButton.setAttribute('disabled', 'disabled');
 
-    const message = e.target.elements.message.value
+    const message = e.target.elements.message.value;
 
     socket.emit('sendMessage', message, (error) => {
         $messageFormButton.removeAttribute('disabled')
@@ -103,32 +114,29 @@ $messageForm.addEventListener('submit', (e) => {
         }
 
         console.log('Message delivered!')
-    })
-})
+    });
+});
 
 $clearChat.addEventListener('click', () => {
-
     let message = document.querySelector("#messages");
     message.innerHTML = "";
-    // if (!navigator.geolocation) {
-    //     return alert('Geolocation is not supported by your browser.')
-    // }
-
-    //$sendLocationButton.setAttribute('disabled', 'disabled')
-    // navigator.geolocation.getCurrentPosition((position) => {
-    //     socket.emit('sendLocation', {
-    //         latitude: position.coords.latitude,
-    //         longitude: position.coords.longitude
-    //     }, () => {
-    //         $sendLocationButton.removeAttribute('disabled')
-    //         console.log('Location shared!')  
-    //     })
-    // })
-})
+});
 
 socket.emit('join', { username, room }, (error) => {
     if (error) {
         alert(error)
         location.href = '/'
     }
-})
+});
+
+const getFile = (input) => {
+    let selectedFile = input.files[0];
+    let formData = new FormData();
+    console.log(JSON.stringify({ username, room }));
+    formData.append("user", JSON.stringify({ username, room }));
+    formData.append("file", selectedFile);
+
+    let ajax = new XMLHttpRequest();
+    ajax.open("POST", '/files');
+    ajax.send(formData);
+};
